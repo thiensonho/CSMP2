@@ -2,8 +2,8 @@ Client:
 > CONNECT name
 < ACK
 > MESSAGE this is a message
-< MESSAGE name this is a message
-< MESSAGE john hello name
+< MESSAGE name:this is a message
+< MESSAGE john:hello name
 > QUIT
 
 > CONNECT name
