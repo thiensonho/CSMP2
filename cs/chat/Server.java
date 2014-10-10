@@ -3,6 +3,7 @@ package cs.chat;
 import cs.chat.server.WorkerThread;
 import java.io.*;
 import java.net.*;
+import java.util.Collection;
 import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,18 +15,44 @@ public class Server {
     public static final int BACKLOG = 5;
     private ServerSocket ss;
     private AtomicBoolean running = new AtomicBoolean();
-    private TreeMap<String, WorkerThread> threads;
+    private final TreeMap<String, WorkerThread> threads;
+
+    public Server() {
+        threads = new TreeMap<String, WorkerThread>();
+    }
 
     public static void main(String argv[]) {
         new Server().listen(Server.PORT);
     }
 
     public boolean nameTaken(String name) {
-        return threads.get(name) != null;
+        synchronized (threads) {
+            return threads.get(name) != null;
+        }
     }
 
     public WorkerThread getThread(String name) {
-        return threads.get(name);
+        synchronized (threads) {
+            return threads.get(name);
+        }
+    }
+
+    public Collection<WorkerThread> getThreads() {
+        synchronized (threads) {
+            return threads.values();
+        }
+    }
+
+    public TreeMap<String, WorkerThread> getThreadLock() {
+        return threads;
+    }
+
+    public void broadcast(String data) {
+        synchronized (threads) {
+            for (WorkerThread t : threads.values()) {
+                t.output(data);
+            }
+        }
     }
 
     public void threadFinished(WorkerThread t, Socket s) {
@@ -39,6 +66,7 @@ public class Server {
             Logger.getLogger(sid).log(Level.WARNING, "Client error", e);
         }finally {
             Logger.getLogger(sid).info("Client left");
+            threads.remove(t.getClientName());
             try {
                 if (!s.isClosed())
                     s.close();
@@ -49,7 +77,6 @@ public class Server {
     }
 
     public void listen(int port) {
-        threads = new TreeMap<String, WorkerThread>();
         running.set(true);
         try {
             ss = new ServerSocket(port, BACKLOG);
