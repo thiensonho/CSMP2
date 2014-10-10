@@ -50,6 +50,7 @@ public class Client {
                     if(input.equalsIgnoreCase("/quit"))
                     {
                        out.println("QUIT");
+                       out.flush();
                        break;
                     }
                     out.println("MESSAGE " + input);
@@ -70,7 +71,7 @@ public class Client {
             try {
                 String input = in.readLine();
                 if(input == null) break;
-                System.out.println("MESSAGE" + input);
+                System.out.println(input);
             }
             catch(IOException e) {
                 e.printStackTrace();
