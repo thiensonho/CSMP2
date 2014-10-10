@@ -7,8 +7,7 @@ import java.util.Collection;
 import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.logging.*;
 
 public class Server {
     public static final int PORT = 6429;
@@ -19,6 +18,12 @@ public class Server {
 
     public Server() {
         threads = new TreeMap<String, WorkerThread>();
+        Logger l = log();
+        l.setUseParentHandlers(false);
+        NotStupidLogFormatter formatter = new NotStupidLogFormatter();
+        ConsoleHandler handler = new ConsoleHandler();
+        handler.setFormatter(formatter);
+        l.addHandler(handler);
     }
 
     public static void main(String argv[]) {
@@ -61,17 +66,17 @@ public class Server {
             if (t.error != null)
                 throw t.error;
         } catch (IOException e) {
-            Logger.getLogger(sid).log(Level.WARNING, "IO error, probably disconnect", e);
+            t.log().log(Level.WARNING, "IO error, probably disconnect", e);
         } catch (Exception e) {
-            Logger.getLogger(sid).log(Level.WARNING, "Client error", e);
+            t.log().log(Level.WARNING, "Client error", e);
         }finally {
-            Logger.getLogger(sid).info("Client left");
+            t.log().info("Client left");
             threads.remove(t.getClientName());
             try {
                 if (!s.isClosed())
                     s.close();
             } catch (IOException e) {
-                Logger.getLogger(sid).info("Error closing socket");
+                t.log().info("Error closing socket");
             }
         }
     }
@@ -85,8 +90,8 @@ public class Server {
             e.printStackTrace();
             System.exit(1);
         }
-        Logger.getLogger("server").info("Listening on " + ss.getInetAddress().getHostAddress() + ":" + ss.getLocalPort());
-        Logger.getLogger("server").info("Accepting clients");
+        log().info("Listening on " + ss.getInetAddress().getHostAddress() + ":" + ss.getLocalPort());
+        log().info("Accepting clients");
         final Scanner sss = new Scanner(System.in);
         new Thread(new Runnable() {
             public void run() {
@@ -99,7 +104,7 @@ public class Server {
                 try {
                     ss.close();
                 } catch (IOException ex) {
-                    Logger.getLogger("server").log(Level.SEVERE, "Error closing server socket", ex);
+                    log().log(Level.SEVERE, "Error closing server socket", ex);
                 }
                 running.set(false);
             }
@@ -113,26 +118,35 @@ public class Server {
                     if (running.get())
                         throw e;
                 }
+                if (s == null)
+                    throw new SocketException();
             } catch (IOException ex) {
-                Logger.getLogger("server").log(Level.SEVERE, "Error accepting client", ex);
-                Logger.getLogger("server").warning("Shutting down because of errors");
+                if (ex.getMessage() != null) {
+                    log().log(Level.SEVERE, "Error accepting client", ex);
+                    log().warning("Shutting down because of errors");
+                } else {
+                    log().info("Shutting down normally");
+                }
                 running.set(false);
                 break;
             }
-            String sid = s.toString();
-            Logger.getLogger(sid).info("Client at " + s.getInetAddress().getHostAddress() + " connected");
             WorkerThread t = new WorkerThread(s, this);
+            t.log().info("Client at " + s.getInetAddress().getHostAddress() + " connected");
             t.start();
         }
         try {
             if (!ss.isClosed())
                 ss.close();
         } catch (IOException ex) {
-            Logger.getLogger("server").log(Level.SEVERE, "Error closing socket", ex);
+            log().log(Level.SEVERE, "Error closing socket", ex);
         }
     }
 
     public void putThread(String name, WorkerThread aThis) {
         threads.put(name, aThis);
+    }
+
+    public Logger log() {
+        return Logger.getLogger("server");
     }
 }

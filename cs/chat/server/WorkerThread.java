@@ -5,10 +5,11 @@
 
 package cs.chat.server;
 
+import cs.chat.NotStupidLogFormatter;
 import cs.chat.Server;
 import java.net.*;
 import java.io.*;
-import java.util.logging.Logger;
+import java.util.logging.*;
 
 /**
  *
@@ -27,8 +28,16 @@ public class WorkerThread extends Thread {
         error = null;
         in = null;
         out = null;
+        Logger l = log();
+        l.setUseParentHandlers(false);
+        NotStupidLogFormatter formatter = new NotStupidLogFormatter();
+        ConsoleHandler handler = new ConsoleHandler();
+        handler.setFormatter(formatter);
+        for (Handler h : l.getHandlers())
+                l.removeHandler(h);
+        l.addHandler(handler);
     }
-    protected Logger log() {
+    public Logger log() {
         return Logger.getLogger(sock.getInetAddress().getHostAddress() + "/" + name);
     }
     public void output(String data) {
@@ -68,7 +77,15 @@ public class WorkerThread extends Thread {
             out.println("ACK");
             out.flush();
             serv.putThread(name, this);
-            Logger.getLogger(sock.toString()).info("Connected with name " + name);
+            Logger l = log();
+            l.setUseParentHandlers(false);
+            NotStupidLogFormatter formatter = new NotStupidLogFormatter();
+            ConsoleHandler handler = new ConsoleHandler();
+            handler.setFormatter(formatter);
+            for (Handler h : l.getHandlers())
+                l.removeHandler(h);
+            l.addHandler(handler);
+            log().info("Connected with name " + name);
             // main loop
             while (true) {
                 String cmdstr = in.readLine();
@@ -76,10 +93,14 @@ public class WorkerThread extends Thread {
                 String[] cmd_toks = cmdstr.split(" ", 2);
                 String cmd = cmd_toks[0];
                 if (cmd.equals("QUIT")) {
-                    Logger.getLogger(sock.toString()).info(name + " quit");
+                    log().info(name + " quit");
+                    serv.broadcast("QUIT " + name);
+                    break;
                 }
                 if (cmd.equals("MESSAGE")) {
-                    Logger.getLogger(sock.toString()).info("Message: " + cmd_toks[1]);
+                    log().info("Message: " + cmd_toks[1]);
+                    out.println("ACK");
+                    out.flush();
                     // send message to other people
                     serv.broadcast("MESSAGE " + name + ":" + cmd_toks[1]);
                 }
