@@ -22,7 +22,8 @@ public class Client {
         // connect to server
         try {
             Scanner scan = new Scanner(System.in);
-            cSocket = new Socket("10.21.50.118", PORT);
+            System.out.print("Enter IP: ");
+            cSocket = new Socket(scan.nextLine(), PORT);
             out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(cSocket.getOutputStream())));
             in = new BufferedReader(new InputStreamReader(cSocket.getInputStream()));
             System.out.println("Enter your name"); //prompt
