@@ -16,6 +16,7 @@ public class Client implements ClientListener {
     ClientFrame frame;
     String error;
     String name;
+    boolean running = true;
 
     public static final int PORT = Server.PORT;
 
@@ -34,6 +35,25 @@ public class Client implements ClientListener {
     
     public void callback(String data) {
         // process data
+        String[] toks = data.split(" ", 2);
+        if (toks.length == 0)
+            return;
+        if (toks[0].equals("QUIT")) {
+            if (toks[1].equals(name)) {
+                // quit
+                running = false;
+                return;
+            } else {
+                frame.addMessage("Server", toks[1] + " quit");
+            }
+        }
+        if (toks[0].equals("MESSAGE")) {
+            String[] mtoks = toks[1].split(":", 2);
+            frame.addMessage(mtoks[0], mtoks[1]);
+        }
+        if (toks[0].equals("JOIN")) {
+            frame.addMessage("Server", toks[1] + " joined");
+        }
     }
 
     public boolean sendAck(String data) {
@@ -131,30 +151,13 @@ public class Client implements ClientListener {
                 }
             }
         });
-        while (true) {
+        while (running) {
             try {
                 String data = in.readLine();
                 if (data == null) {
                     data = "QUIT " + name;
                 }
-                String[] toks = data.split(" ", 2);
-                if (toks.length == 0)
-                    continue;
-                if (toks[0].equals("QUIT")) {
-                    if (toks[1].equals(name)) {
-                        // quit
-                        break;
-                    } else {
-                        frame.addMessage("Server", toks[1] + " quit");
-                    }
-                }
-                if (toks[0].equals("MESSAGE")) {
-                    String[] mtoks = toks[1].split(":", 2);
-                    frame.addMessage(mtoks[0], mtoks[1]);
-                }
-                if (toks[0].equals("JOIN")) {
-                    frame.addMessage("Server", toks[1] + " joined");
-                }
+                callback(data);
             } catch (IOException e) {
                 showError("Error!");
                 return;
