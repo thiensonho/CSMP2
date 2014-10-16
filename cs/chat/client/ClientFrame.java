@@ -31,7 +31,7 @@ public class ClientFrame extends JFrame {
     ClientListener listener;
     public ClientFrame() {
         super("Chat");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         Container cp = this.getContentPane();
         cp.setLayout(new BorderLayout());
         ((BorderLayout)cp.getLayout()).setHgap(5);

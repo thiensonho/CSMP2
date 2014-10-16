@@ -1,87 +1,178 @@
 package cs.chat;
 
+import cs.chat.client.ClientFrame;
+import cs.chat.client.ClientListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.*;
 import java.net.*;
-import java.util.*;
+import javax.swing.JOptionPane;
 
-public class Client {
+public class Client implements ClientListener {
 
     PrintWriter out;
     BufferedReader in;
-    Socket cSocket;
+    Socket sock;
+    ClientFrame frame;
+    String error;
+    String name;
 
     public static final int PORT = Server.PORT;
 
     public Client() {
         out = null;
         in = null;
-        cSocket = null;
+        sock = null;
+        frame = new ClientFrame();
+        error = null;
+        name = "";
+    }
+
+    public void showError(String error) {
+        JOptionPane.showMessageDialog(frame, error, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+    
+    public void callback(String data) {
+        // process data
+    }
+
+    public boolean sendAck(String data) {
+        out.println(data);
+        out.flush();
+        while (true) {
+            try {
+                String res = in.readLine();
+                if (res == null)
+                    throw new IOException();
+                String[] toks = res.split(" ");
+                if (toks.length == 0)
+                    continue;
+                if (toks[0].equals("ACK")) {
+                    error = null;
+                    return true;
+                }
+                if (toks[1].equals("ERROR")) {
+                    System.out.println(res);
+                    error = "";
+                    for (int i = 1; i < toks.length; i++) {
+                        if (i != 1)
+                            error += " ";
+                        error += toks[i];
+                    }
+                    return false;
+                }
+                callback(res);
+            } catch (IOException ex) {
+                // ABORT
+                showError("IO ERROR!");
+                System.exit(1);
+                return false;
+            }
+        }
+    }
+
+    public void verifyAck(String data) {
+        if (!sendAck(data))
+            throw new RuntimeException(error);
     }
 
     public void run() {
-        // connect to server
-        try {
-            Scanner scan = new Scanner(System.in);
-            System.out.print("Enter IP: ");
-            cSocket = new Socket(scan.nextLine(), PORT);
-            out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(cSocket.getOutputStream())));
-            in = new BufferedReader(new InputStreamReader(cSocket.getInputStream()));
-            System.out.println("Enter your name"); //prompt
-            out.println("CONNECT " + scan.nextLine());
-            out.flush();
-            String s = in.readLine();
-            System.out.println(s);
-
+        frame.setVisible(true);
+        String ip = JOptionPane.showInputDialog(frame, "Enter Server IP", "Server IP", JOptionPane.QUESTION_MESSAGE);
+        while (sock == null) {
+            try {
+                sock = new Socket(ip, PORT);
+                in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+                out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(sock.getOutputStream())));
+            } catch (UnknownHostException e) {
+                showError("Unknown host; invalid IP");
+            } catch (IOException e) {
+                showError("IO error opening socket");
+                return;
+            }
         }
-        catch(IOException e)
-        {
-            e.printStackTrace();
-        }
-        // message thread
-        Thread messageThread = new Thread() {
-            @Override
-            public void run() {
-                // read input from console
-                // and then write "MESSAGE [input]" to the socket
-                // if input is /quit
-                // then write "QUIT" to the socket
-                Scanner scan = new Scanner(System.in);
-                while (true) {
-                    String input = scan.nextLine();
-                    if(input.equalsIgnoreCase("/quit"))
-                    {
-                       out.println("QUIT");
-                       out.flush();
-                       break;
-                    }
-                    out.println("MESSAGE " + input);
-                    out.flush();
+        while (true) {
+            name = JOptionPane.showInputDialog(frame, "Enter your name", "Name", JOptionPane.QUESTION_MESSAGE);
+            if (!sendAck("CONNECT " + name)) {
+                System.out.println("Connect error: " + error);
+                if (error.equals("FORMAT")) {
+                    showError("Format error");
+                } else if (error.equals("TAKEN")) {
+                    showError("Name taken");
+                } else if (error.equals("NAME")) {
+                    showError("Name format error");
+                } else {
+                    showError("Error error");
                 }
                 try {
-                    cSocket.close();
+                    sock = new Socket(ip, PORT);
+                    in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+                    out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(sock.getOutputStream())));
+                } catch (UnknownHostException e) {
+                    showError("Unknown host; invalid IP");
+                    return;
+                } catch (IOException e) {
+                    showError("IO error opening socket");
+                    return;
                 }
-                catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-        messageThread.start();
-        do {
-            // read from in
-            // and print to System.out
-            try {
-                String input = in.readLine();
-                if(input == null) break;
-                System.out.println(input);
-            }
-            catch(IOException e) {
-                e.printStackTrace();
+            } else {
                 break;
             }
-        } while(true);
+        }
+        frame.setTitle("Chat - " + name);
+        frame.setListener(this);
+        frame.addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                try {
+                    out.println("QUIT");
+                    out.flush();
+                } catch (NullPointerException ee) {
+                    System.exit(0);
+                }
+            }
+        });
+        while (true) {
+            try {
+                String data = in.readLine();
+                if (data == null) {
+                    data = "QUIT " + name;
+                }
+                String[] toks = data.split(" ", 2);
+                if (toks.length == 0)
+                    continue;
+                if (toks[0].equals("QUIT")) {
+                    if (toks[1].equals(name)) {
+                        // quit
+                        break;
+                    } else {
+                        frame.addMessage("Server", toks[1] + " quit");
+                    }
+                }
+                if (toks[0].equals("MESSAGE")) {
+                    String[] mtoks = toks[1].split(":", 2);
+                    frame.addMessage(mtoks[0], mtoks[1]);
+                }
+                if (toks[0].equals("JOIN")) {
+                    frame.addMessage("Server", toks[1] + " joined");
+                }
+            } catch (IOException e) {
+                showError("Error!");
+                return;
+            }
+        }
     }
 
     public static void main(String argv[]) {
-        new Client().run();
+        Client c = new Client();
+        c.run();
+        System.exit(0);
+    }
+
+    public void messageSend(String msg) {
+        if (msg.equals("/quit"))
+            out.println("QUIT");
+        else
+            out.println("MESSAGE " + msg);
+        out.flush();
     }
 }

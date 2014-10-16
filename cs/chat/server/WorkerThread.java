@@ -76,7 +76,9 @@ public class WorkerThread extends Thread {
             }
             out.println("ACK");
             out.flush();
+            // broadcast join
             serv.putThread(name, this);
+            serv.broadcast("JOIN " + name);
             Logger l = log();
             l.setUseParentHandlers(false);
             NotStupidLogFormatter formatter = new NotStupidLogFormatter();
