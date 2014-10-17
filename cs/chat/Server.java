@@ -4,6 +4,9 @@ import cs.chat.server.WorkerThread;
 import java.io.*;
 import java.net.*;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,9 +18,12 @@ public class Server {
     private ServerSocket ss;
     private AtomicBoolean running = new AtomicBoolean();
     private final TreeMap<String, WorkerThread> threads;
+    public final List<String> cache;
+    public static final int CACHE_SIZE = 100;
 
     public Server() {
         threads = new TreeMap<String, WorkerThread>();
+        cache = Collections.synchronizedList(new LinkedList<String>());
         Logger l = log();
         l.setUseParentHandlers(false);
         NotStupidLogFormatter formatter = new NotStupidLogFormatter();
@@ -45,6 +51,12 @@ public class Server {
     public Collection<WorkerThread> getThreads() {
         synchronized (threads) {
             return threads.values();
+        }
+    }
+
+    public Collection<String> getNames() {
+        synchronized (threads) {
+            return threads.keySet();
         }
     }
 
@@ -99,6 +111,12 @@ public class Server {
                     String ssss = sss.nextLine();
                     if (ssss.equals("quit"))
                         break;
+                    if (ssss.equals("force")) {
+                        for (WorkerThread t : getThreads()) {
+                            t.kill();
+                        }
+                        break;
+                    }
                     System.out.println(ssss);
                 }
                 try {

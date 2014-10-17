@@ -37,6 +37,13 @@ public class WorkerThread extends Thread {
                 l.removeHandler(h);
         l.addHandler(handler);
     }
+    public void kill() {
+        try {
+            sock.close();
+        } catch (IOException e) {
+            // lol
+        }
+    }
     public Logger log() {
         return Logger.getLogger(sock.getInetAddress().getHostAddress() + "/" + name);
     }
@@ -78,6 +85,13 @@ public class WorkerThread extends Thread {
             out.flush();
             // broadcast join
             serv.putThread(name, this);
+            // send cache
+            synchronized (serv.cache) {
+                for (String msg : serv.cache) {
+                    out.println("MESSAGE " + msg);
+                }
+            }
+            out.flush();
             serv.broadcast("JOIN " + name);
             Logger l = log();
             l.setUseParentHandlers(false);
@@ -104,7 +118,26 @@ public class WorkerThread extends Thread {
                     out.println("ACK");
                     out.flush();
                     // send message to other people
-                    serv.broadcast("MESSAGE " + name + ":" + cmd_toks[1]);
+                    String msg = name + ":" + cmd_toks[1];
+                    synchronized (serv.cache) {
+                        serv.cache.add(msg);
+                        if (serv.cache.size() > Server.CACHE_SIZE) {
+                            serv.cache.remove(0);
+                        }
+                    }
+                    serv.broadcast("MESSAGE " + msg);
+                }
+                if (cmd.equals("USERS")) {
+                    log().info("Sending users");
+                    out.println("ACK");
+                    out.flush();
+                    // send USERS CLEAR
+                    // and  USERS ADD name
+                    out.println("USERS CLEAR");
+                    for (String n : serv.getNames()) {
+                        out.println("USERS ADD " + n);
+                    }
+                    out.flush();
                 }
             }
         } catch (Exception e) {

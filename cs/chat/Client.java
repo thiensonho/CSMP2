@@ -45,6 +45,8 @@ public class Client implements ClientListener {
                 return;
             } else {
                 frame.addMessage("Server", toks[1] + " quit");
+                // request user list
+                sendAck("USERS");
             }
         }
         if (toks[0].equals("MESSAGE")) {
@@ -53,6 +55,15 @@ public class Client implements ClientListener {
         }
         if (toks[0].equals("JOIN")) {
             frame.addMessage("Server", toks[1] + " joined");
+            // request user list
+            sendAck("USERS");
+        }
+        if (toks[0].equals("USERS")) {
+            String[] utoks = toks[1].split(" ", 2);
+            if (utoks[0].equals("CLEAR"))
+                frame.users.clear();
+            else if (utoks[0].equals("ADD"))
+                frame.users.addElement(utoks[1]);
         }
     }
 
@@ -142,6 +153,7 @@ public class Client implements ClientListener {
         frame.setTitle("Chat - " + name);
         frame.setListener(this);
         frame.addWindowListener(new WindowAdapter() {
+            @Override
             public void windowClosing(WindowEvent e) {
                 try {
                     out.println("QUIT");

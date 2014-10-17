@@ -9,8 +9,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Vector;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultCaret;
 import javax.swing.text.MutableAttributeSet;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
@@ -24,11 +24,12 @@ public class ClientFrame extends JFrame {
     JTextPane messages;
     StyledDocument msgDoc;
     JList userList;
-    public Vector users;
+    public DefaultListModel users;
     JTextField msgText;
     JButton sendBtn;
     MutableAttributeSet userAS;
     ClientListener listener;
+    JScrollPane msgScroll;
     public ClientFrame() {
         super("Chat");
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -38,11 +39,13 @@ public class ClientFrame extends JFrame {
         messages = new JTextPane();
         messages.setPreferredSize(new Dimension(500, 400));
         messages.setEditable(false);
+        ((DefaultCaret)messages.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
         msgDoc = messages.getStyledDocument();
-        cp.add(messages, BorderLayout.CENTER);
+        msgScroll = new JScrollPane(messages);
+        cp.add(msgScroll, BorderLayout.CENTER);
         JPanel userPanel = new JPanel();
         userPanel.setLayout(new BorderLayout());
-        users = new Vector();
+        users = new DefaultListModel();
         userList = new JList(users);
         userList.setMinimumSize(new Dimension(150, 20));
         userList.setPreferredSize(new Dimension(150, 400));
@@ -100,7 +103,7 @@ public class ClientFrame extends JFrame {
             }
         });
         f.setVisible(true);
-        f.users.add("James");
-        f.users.add("ThienSon");
+        f.users.addElement("James");
+        f.users.addElement("ThienSon");
     }
 }
