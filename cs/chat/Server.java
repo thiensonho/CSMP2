@@ -12,22 +12,33 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.*;
 
+/**
+ * Server class the implements the server part of the client-server architecture
+ */
 public class Server {
+    // random number
     public static final int PORT = 6429;
+    // number of clients that can wait for accept
     public static final int BACKLOG = 5;
+    // server socket
     private ServerSocket ss;
+    // thread-safety
     private AtomicBoolean running = new AtomicBoolean();
+    // map of name to thread
     private final TreeMap<String, WorkerThread> threads;
+    // list of messages in cache
     public final List<String> cache;
     public static final int CACHE_SIZE = 100;
 
     public Server() {
         threads = new TreeMap<String, WorkerThread>();
+        // make the cache synchronized for thread safety
         cache = Collections.synchronizedList(new LinkedList<String>());
+        // let us send to the nicely formatted logger
         Logger l = log();
-        l.setUseParentHandlers(false);
-        NotStupidLogFormatter formatter = new NotStupidLogFormatter();
-        ConsoleHandler handler = new ConsoleHandler();
+        l.setUseParentHandlers(false); // don't use the default
+        NotStupidLogFormatter formatter = new NotStupidLogFormatter(); // use ours
+        ConsoleHandler handler = new ConsoleHandler(); // print to console
         handler.setFormatter(formatter);
         l.addHandler(handler);
     }
@@ -37,8 +48,8 @@ public class Server {
     }
 
     public boolean nameTaken(String name) {
-        synchronized (threads) {
-            return threads.get(name) != null;
+        synchronized (threads) { // thread safety
+            return threads.get(name) != null; // self-explanatory
         }
     }
 
@@ -64,6 +75,10 @@ public class Server {
         return threads;
     }
 
+    /**
+     * Send to all of the clients
+     * @param data The data to send
+     */
     public void broadcast(String data) {
         synchronized (threads) {
             for (WorkerThread t : threads.values()) {
@@ -72,16 +87,21 @@ public class Server {
         }
     }
 
+    /**
+     * Run whenever a thread is finished (client quit/disconnect)
+     * @param t The thread
+     * @param s The socket
+     */
     public void threadFinished(WorkerThread t, Socket s) {
-        String sid = s.toString();
         try {
             if (t.error != null)
-                throw t.error;
+                throw t.error; // better than a string of instanceof
+        // now we log some errors
         } catch (IOException e) {
             t.log().log(Level.WARNING, "IO error, probably disconnect", e);
         } catch (Exception e) {
             t.log().log(Level.WARNING, "Client error", e);
-        }finally {
+        } finally {
             t.log().info("Client left");
             threads.remove(t.getClientName());
             try {
@@ -93,6 +113,10 @@ public class Server {
         }
     }
 
+    /**
+     * Main server method
+     * @param port The port on which to listen
+     */
     public void listen(int port) {
         running.set(true);
         try {
@@ -104,20 +128,20 @@ public class Server {
         }
         log().info("Listening on " + ss.getInetAddress().getHostAddress() + ":" + ss.getLocalPort());
         log().info("Accepting clients");
-        final Scanner sss = new Scanner(System.in);
-        new Thread(new Runnable() {
+        final Scanner sss = new Scanner(System.in); // let us quit using command line
+        new Thread(new Runnable() { // command-line input thread
             public void run() {
                 while (sss.hasNextLine()) {
                     String ssss = sss.nextLine();
-                    if (ssss.equals("quit"))
+                    if (ssss.equals("quit")) // weak quit, wait for threads to finish
                         break;
-                    if (ssss.equals("force")) {
+                    if (ssss.equals("force")) { // force quit
                         for (WorkerThread t : getThreads()) {
                             t.kill();
                         }
                         break;
                     }
-                    System.out.println(ssss);
+                    System.out.println(ssss); // print the string
                 }
                 try {
                     ss.close();
@@ -131,7 +155,7 @@ public class Server {
             Socket s = null;
             try {
                 try {
-                    s = ss.accept();
+                    s = ss.accept(); // get a socket (client) from waiting list
                 } catch (SocketException e) {
                     if (running.get())
                         throw e;
@@ -143,6 +167,7 @@ public class Server {
                     log().log(Level.SEVERE, "Error accepting client", ex);
                     log().warning("Shutting down because of errors");
                 } else {
+                    // thrown when we try to quit, not an error
                     log().info("Shutting down normally");
                 }
                 running.set(false);
@@ -160,6 +185,11 @@ public class Server {
         }
     }
 
+    /**
+     * Put a thread into the map
+     * @param name Name of the client
+     * @param aThis the thread
+     */
     public void putThread(String name, WorkerThread aThis) {
         threads.put(name, aThis);
     }

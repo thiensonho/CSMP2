@@ -1,14 +1,12 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package cs.chat.client;
 
 /**
- *
- * @author s506571
+ * Interface for the Client Frame
  */
 public interface ClientListener {
+    /**
+     * Called when the send button is pressed
+     * @param msg The message in the text box
+     */
     public void messageSend(String msg);
 }

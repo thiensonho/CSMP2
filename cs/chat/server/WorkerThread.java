@@ -1,8 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package cs.chat.server;
 
 import cs.chat.NotStupidLogFormatter;
@@ -12,8 +7,7 @@ import java.io.*;
 import java.util.logging.*;
 
 /**
- *
- * @author s506571
+ * Worker thread for each client
  */
 public class WorkerThread extends Thread {
     private Server serv;
@@ -28,7 +22,7 @@ public class WorkerThread extends Thread {
         error = null;
         in = null;
         out = null;
-        Logger l = log();
+        Logger l = log(); // logger stuff
         l.setUseParentHandlers(false);
         NotStupidLogFormatter formatter = new NotStupidLogFormatter();
         ConsoleHandler handler = new ConsoleHandler();
@@ -41,13 +35,13 @@ public class WorkerThread extends Thread {
         try {
             sock.close();
         } catch (IOException e) {
-            // lol
+            // do nothing
         }
     }
     public Logger log() {
         return Logger.getLogger(sock.getInetAddress().getHostAddress() + "/" + name);
     }
-    public void output(String data) {
+    public void output(String data) { // put a thing and flush it
         if (out != null) {
             out.println(data);
             out.flush();
@@ -56,9 +50,13 @@ public class WorkerThread extends Thread {
     public String getClientName() {
         return name;
     }
+    /**
+     * Main run method
+     */
     @Override
     public void run() {
         try {
+            // strings
             out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(sock.getOutputStream())));
             in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
             // CONNECT name
@@ -74,6 +72,7 @@ public class WorkerThread extends Thread {
             if (serv.nameTaken(name)) {
                 out.println("ERROR TAKEN");
                 out.flush();
+                name = null; // make sure we don't delete the record
                 throw new Exception("Name taken");
             }
             if (name.indexOf((int)':') != -1) {
@@ -83,7 +82,6 @@ public class WorkerThread extends Thread {
             }
             out.println("ACK");
             out.flush();
-            // broadcast join
             serv.putThread(name, this);
             // send cache
             synchronized (serv.cache) {
@@ -92,21 +90,22 @@ public class WorkerThread extends Thread {
                 }
             }
             out.flush();
+            // broadcast join
             serv.broadcast("JOIN " + name);
-            Logger l = log();
+            Logger l = log(); // logger!
             l.setUseParentHandlers(false);
             NotStupidLogFormatter formatter = new NotStupidLogFormatter();
             ConsoleHandler handler = new ConsoleHandler();
             handler.setFormatter(formatter);
             for (Handler h : l.getHandlers())
-                l.removeHandler(h);
+                l.removeHandler(h); // don't add handler more than once
             l.addHandler(handler);
             log().info("Connected with name " + name);
             // main loop
             while (true) {
                 String cmdstr = in.readLine();
                 if (cmdstr == null) break;
-                String[] cmd_toks = cmdstr.split(" ", 2);
+                String[] cmd_toks = cmdstr.split(" ", 2); // see Client stuff
                 String cmd = cmd_toks[0];
                 if (cmd.equals("QUIT")) {
                     log().info(name + " quit");
